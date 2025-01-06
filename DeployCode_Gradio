@@ -1,0 +1,42 @@
+import gradio as gr
+import joblib
+import numpy as np
+
+# Load the trained model
+model_path = 'RDF_Model_Classify_Severity_CKD.s3a'
+model = joblib.load(model_path)
+
+# Define the prediction function
+def predict_ckd_severity(age, c3, c4):
+    c3_c4_ratio = round(c3 / c4, 2)
+    features = np.array([[age, c3, c4, c3_c4_ratio]])
+    prediction = model.predict(features)[0]
+    probability = model.predict_proba(features)[0][prediction] * 100
+    
+    if probability < 50:
+        adjusted_probability = (probability / 50) * 100
+    else:
+        adjusted_probability = ((probability - 50) / 50) * 100
+    
+    
+    
+    if prediction == 1:
+        result = f"The CKD status is most likely to progress into Severe (1). The probability is {adjusted_probability:.2f}%."
+    else:
+        result = f"The CKD status is most likely to progress into Non-Severe (0). The probability is {adjusted_probability:.2f}%."
+    
+    return c3_c4_ratio, result
+
+# Create the Gradio interface
+inputs = [
+    gr.Number(label="Age (in years)"),
+    gr.Number(label="C3"),
+    gr.Number(label="C4")
+]
+
+outputs = [
+    gr.Textbox(label="C3/C4 Ratio"),
+    gr.Textbox(label="Prediction")
+]
+
+gr.Interface(fn=predict_ckd_severity, inputs=inputs, outputs=outputs, title="CKD Severity Prediction").launch()
